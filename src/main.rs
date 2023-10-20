@@ -1,6 +1,6 @@
 mod args;
 mod types;
-use std::{fs::File, time::Instant, process::ExitCode, io::{self, BufRead}, path::Path};
+use std::{fs::File, time::Instant, process::ExitCode, io::{self, BufRead}, path::Path, vec};
 
 use ahash::AHashSet;
 use clap::Parser;
@@ -35,16 +35,34 @@ fn main() -> ExitCode {
             if let Ok(node_json) = line {
                 let node: Result<types::FilterFormat, serde_json::Error> = serde_json::from_str(&node_json);
                 if let Ok(node) = node {
-                    filter_set.insert(node.id);
+                    if let Some(ref exclude_cats) = args.exclude_category {
+                        if !has_excluded_category(&node.category, &exclude_cats) {
+                            filter_set.insert(node.id);
+                        }
+                    }
+                    else {
+                        filter_set.insert(node.id);
+                    }
                 }
             }
         }
     }
 
+    println!("{}", filter_set.len());
+
     let duration = start.elapsed();
     println!("Program took {:?}", duration);
 
     ExitCode::SUCCESS
+}
+
+fn has_excluded_category(set: &Vec<String>, exclude_set: &Vec<String>) -> bool {
+    for cat in set.iter() {
+        for ex_cat in exclude_set.iter() {
+            if cat == ex_cat { return true; }
+        }
+    }
+    false
 }
 
 // The output is wrapped in a Result to allow matching on errors
