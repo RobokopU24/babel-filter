@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use camino::Utf8PathBuf;
 use clap::Parser;
 
@@ -11,12 +9,12 @@ use clap::Parser;
 pub struct Cli {
   /// The directory containing Babel JSONL files
   pub babel_directory: Utf8PathBuf,
+  
+  /// The path to the filter JSONL file to be used
+  pub filter_file: Utf8PathBuf,
 
   /// The directory to put the filtered JSONL output files
   pub output_directory: Utf8PathBuf,
-
-  /// The path to the filter JSONL file to be used
-  pub filter_file: Utf8PathBuf,
 
   /// Exclude nodes with these biolink categories from the output. Multiple categories 
   /// can be specified by using the flag again
