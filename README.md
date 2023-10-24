@@ -14,3 +14,4 @@
 - [ ] multithreading?
   - per file--probably not worth the headache, especially if this is running on a HDD
   - per directory--potentially doable and could save time if the OS supports concurrent r/w
+- [ ] support compressing/decompressing gzip
