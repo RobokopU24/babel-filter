@@ -4,6 +4,8 @@ use clap::Parser;
 /// This script takes a directory of Babel files (JSONL) and creates filtered versions
 /// in a new directory containing only the lines where the the json key (default `curie`)
 /// value in the Babel file is present in a json key (default `id`) value in the filter file. 
+/// 
+/// Gzipped files will be gzipped in the output, unless the user 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
@@ -29,6 +31,10 @@ pub struct Cli {
   #[arg(long, default_value_t = String::from("id"), value_name="KEY")]
   pub filter_file_identifier: String,
 
+  /// Force format of all output files. If not set, output files will match their input files.
+  #[clap(short='c', long, value_enum)]
+  pub output_format: Option<OutputFormat>,
+
   /// read buffer capacity, in bytes
   #[arg(long, default_value_t = 32_000, value_name="BYTES")]
   pub read_buf_capacity: usize,
@@ -36,4 +42,10 @@ pub struct Cli {
   /// write buffer capacity, in bytes
   #[arg(long, default_value_t = 32_000, value_name="BYTES")]
   pub write_buf_capacity: usize,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum OutputFormat {
+  Gzipped,
+  Plaintext,
 }

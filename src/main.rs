@@ -2,7 +2,7 @@ mod args;
 mod file;
 mod types;
 
-use std::{fs, path::Path, process::ExitCode, time::Instant};
+use std::{ffi::OsStr, fs, path::Path, process::ExitCode, time::Instant};
 
 use ahash::AHashSet;
 use clap::Parser;
@@ -33,9 +33,8 @@ fn main() -> ExitCode {
     }
 
     let mut filter_set: AHashSet<String> = AHashSet::new();
-    let mut num_removed: usize = 0;
-
     {
+        let mut num_removed: usize = 0;
         let t0 = Instant::now();
         let lines = Reader::new(filter_file, args.read_buf_capacity)
             .expect("Error opening filter file")
@@ -66,10 +65,25 @@ fn main() -> ExitCode {
             if f.path().is_file() {
                 let t0 = Instant::now();
 
-                let output_file_path = Path::join(
+                let mut output_file_path = Path::join(
                     output_directory.as_std_path(),
                     f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
                 );
+
+                // force compressed/not compressed output if output_format arg is set
+                match args.output_format {
+                    Some(args::OutputFormat::Plaintext) => {
+                        if output_file_path.extension() == Some(OsStr::new("gz")) {
+                            output_file_path = output_file_path.with_extension("")
+                        }
+                    }
+                    Some(args::OutputFormat::Gzipped) => {
+                        if output_file_path.extension() != Some(OsStr::new("gz")) {
+                            output_file_path = output_file_path.with_extension("gz")
+                        }
+                    }
+                    None => (),
+                }
 
                 let reader: Reader = Reader::new(f.path(), args.read_buf_capacity)
                     .expect("Error opening file for reading");

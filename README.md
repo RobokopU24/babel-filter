@@ -10,7 +10,7 @@
   - don't silently skip nodes
 - [ ] error file when a node fails or write to stderr? config via flag?
 - [ ] add better progress indication, colors, est time remaining
-- [ ] allow read/write buffer to be configured by flag
+- [x] allow read/write buffer to be configured by flag
 - [ ] multithreading?
   - per file--probably not worth the headache, especially if this is running on a HDD
   - per directory--potentially doable and could save time if the OS supports concurrent r/w
