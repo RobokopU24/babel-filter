@@ -99,6 +99,7 @@ fn main() -> ExitCode {
 }
 
 fn has_excluded_category(set: &Vec<String>, exclude_set: &Vec<String>) -> bool {
+    if exclude_set.is_empty() { return false }
     for cat in set.iter() {
         for ex_cat in exclude_set.iter() {
             if cat == ex_cat {
