@@ -15,16 +15,16 @@ impl Reader {
   /// the file extension so it's up to the user to ensure files have the proper extensions.
   /// 
   /// Returns `Err` if there is an issue opening the file.
-  pub fn new<P>(path: P) -> io::Result<Reader>
+  pub fn new<P>(path: P, buffer_capacity: usize) -> io::Result<Reader>
   where
       P: AsRef<Path>,
   {
       let file = File::open(&path)?;
 
       let reader: Box<dyn BufRead> = if path.as_ref().extension() == Some(&OsStr::new("gz")) {
-          Box::new(BufReader::new(GzDecoder::new(file)))
+          Box::new(BufReader::with_capacity(buffer_capacity, GzDecoder::new(file)))
       } else {
-          Box::new(BufReader::new(file))
+          Box::new(BufReader::with_capacity(buffer_capacity, file))
       };
 
       Ok(Reader { reader })

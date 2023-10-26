@@ -28,4 +28,12 @@ pub struct Cli {
   /// The identifier key in each line of the filter file JSONL
   #[arg(long, default_value_t = String::from("id"), value_name="KEY")]
   pub filter_file_identifier: String,
+
+  /// read buffer capacity, in bytes
+  #[arg(long, default_value_t = 32_000, value_name="BYTES")]
+  pub read_buf_capacity: usize,
+
+  /// write buffer capacity, in bytes
+  #[arg(long, default_value_t = 32_000, value_name="BYTES")]
+  pub write_buf_capacity: usize,
 }

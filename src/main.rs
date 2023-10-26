@@ -37,7 +37,7 @@ fn main() -> ExitCode {
 
     {
         let t0 = Instant::now();
-        let lines = Reader::new(filter_file)
+        let lines = Reader::new(filter_file, args.read_buf_capacity)
             .expect("Error opening filter file")
             .lines();
         for line in lines {
@@ -71,9 +71,10 @@ fn main() -> ExitCode {
                     f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
                 );
 
-                let reader: Reader = Reader::new(f.path()).expect("Error opening file for reading");
-                let mut writer: Writer =
-                    Writer::new(output_file_path).expect("Error creating file");
+                let reader: Reader = Reader::new(f.path(), args.read_buf_capacity)
+                    .expect("Error opening file for reading");
+                let mut writer: Writer = Writer::new(output_file_path, args.write_buf_capacity)
+                    .expect("Error creating file");
 
                 for line in reader.lines() {
                     if let Ok(node_json) = line {
@@ -99,7 +100,9 @@ fn main() -> ExitCode {
 }
 
 fn has_excluded_category(set: &Vec<String>, exclude_set: &Vec<String>) -> bool {
-    if exclude_set.is_empty() { return false }
+    if exclude_set.is_empty() {
+        return false;
+    }
     for cat in set.iter() {
         for ex_cat in exclude_set.iter() {
             if cat == ex_cat {
