@@ -1,16 +1,14 @@
 mod args;
+mod file;
 mod types;
-use std::{
-    fs::{self, File},
-    io::{self, BufRead, BufWriter, Write},
-    path::Path,
-    process::ExitCode,
-    time::Instant,
-};
+
+use std::{fs, path::Path, process::ExitCode, time::Instant};
 
 use ahash::AHashSet;
 use clap::Parser;
 use serde_json;
+
+use file::{reader::Reader, writer::Writer};
 
 fn main() -> ExitCode {
     let start = Instant::now();
@@ -39,21 +37,22 @@ fn main() -> ExitCode {
 
     {
         let t0 = Instant::now();
-        if let Ok(lines) = read_lines(filter_file) {
-            for line in lines {
-                if let Ok(node_json) = line {
-                    let node: Result<types::FilterFormat, serde_json::Error> =
-                        serde_json::from_str(&node_json);
-                    if let Ok(node) = node {
-                        if let Some(ref exclude_cats) = args.exclude_category {
-                            if !has_excluded_category(&node.category, &exclude_cats) {
-                                filter_set.insert(node.id);
-                            } else {
-                                num_removed += 1;
-                            }
-                        } else {
+        let lines = Reader::new(filter_file)
+            .expect("Error opening filter file")
+            .lines();
+        for line in lines {
+            if let Ok(node_json) = line {
+                let node: Result<types::FilterFormat, serde_json::Error> =
+                    serde_json::from_str(&node_json);
+                if let Ok(node) = node {
+                    if let Some(ref exclude_cats) = args.exclude_category {
+                        if !has_excluded_category(&node.category, &exclude_cats) {
                             filter_set.insert(node.id);
+                        } else {
+                            num_removed += 1;
                         }
+                    } else {
+                        filter_set.insert(node.id);
                     }
                 }
             }
@@ -67,25 +66,22 @@ fn main() -> ExitCode {
             if f.path().is_file() {
                 let t0 = Instant::now();
 
-                let output_file = File::create(Path::join(
+                let output_file_path = Path::join(
                     output_directory.as_std_path(),
-                    f.path().file_name().unwrap(),
-                ))
-                .unwrap();
-                let mut buf_writer = BufWriter::with_capacity(256_000, output_file);
+                    f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
+                );
 
-                if let Ok(f) = read_lines(f.path()) {
-                    for line in f {
-                        if let Ok(mut node_json) = line {
-                            let node: Result<types::BabelFormat, serde_json::Error> =
-                                serde_json::from_str(&node_json);
-                            if let Ok(node) = node {
-                                if filter_set.contains(&node.curie) {
-                                    node_json.push('\n');
-                                    buf_writer
-                                        .write_all(node_json.as_bytes())
-                                        .expect("Error writing");
-                                }
+                let reader: Reader = Reader::new(f.path()).expect("Error opening file for reading");
+                let mut writer: Writer =
+                    Writer::new(output_file_path).expect("Error creating file");
+
+                for line in reader.lines() {
+                    if let Ok(node_json) = line {
+                        let node: Result<types::BabelFormat, serde_json::Error> =
+                            serde_json::from_str(&node_json);
+                        if let Ok(node) = node {
+                            if filter_set.contains(&node.curie) {
+                                writer.write_line(&node_json).expect("Error writing line")
                             }
                         }
                     }
@@ -111,14 +107,4 @@ fn has_excluded_category(set: &Vec<String>, exclude_set: &Vec<String>) -> bool {
         }
     }
     false
-}
-
-// The output is wrapped in a Result to allow matching on errors
-// Returns an Iterator to the Reader of the lines of the file.
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = File::open(filename)?;
-    Ok(io::BufReader::with_capacity(256_000, file).lines())
 }

@@ -14,4 +14,6 @@
 - [ ] multithreading?
   - per file--probably not worth the headache, especially if this is running on a HDD
   - per directory--potentially doable and could save time if the OS supports concurrent r/w
-- [ ] support compressing/decompressing gzip
+- [x] support compressing/decompressing gzip
+  - detect `.gz` and comp/decomp accordingly so that normal files are allowed as well
+- [ ] print info table -> how many nodes were removed
