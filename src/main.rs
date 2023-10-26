@@ -87,8 +87,9 @@ fn main() -> ExitCode {
 
                 let reader: Reader = Reader::new(f.path(), args.read_buf_capacity)
                     .expect("Error opening file for reading");
-                let mut writer: Writer = Writer::new(output_file_path, args.write_buf_capacity)
-                    .expect("Error creating file");
+                let mut writer: Writer =
+                    Writer::new(output_file_path.clone(), args.write_buf_capacity)
+                        .expect("Error creating file");
 
                 for line in reader.lines() {
                     if let Ok(node_json) = line {
@@ -102,7 +103,11 @@ fn main() -> ExitCode {
                     }
                 }
 
-                println!("Writing {:?} took {:?}", f.file_name(), t0.elapsed());
+                println!(
+                    "Writing {:?} took {:?}",
+                    output_file_path.file_name().unwrap_or_default(),
+                    t0.elapsed()
+                );
             }
         }
     }
