@@ -1,12 +1,11 @@
 mod args;
 mod file;
-mod types;
 
 use std::{ffi::OsStr, fs, path::Path, process::ExitCode, time::Instant};
 
 use ahash::AHashSet;
 use clap::Parser;
-use serde_json;
+use serde_json::{self, Value};
 
 use file::{reader::Reader, writer::Writer};
 
@@ -41,17 +40,32 @@ fn main() -> ExitCode {
             .lines();
         for line in lines {
             if let Ok(node_json) = line {
-                let node: Result<types::FilterFormat, serde_json::Error> =
-                    serde_json::from_str(&node_json);
+                let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
                 if let Ok(node) = node {
-                    if let Some(ref exclude_cats) = args.exclude_category {
-                        if !has_excluded_category(&node.category, &exclude_cats) {
-                            filter_set.insert(node.id);
+                    if let Some(filter_file_identifier) = node
+                        .get(args.filter_file_identifier.clone())
+                        .and_then(|v| v.as_str())
+                    {
+                        if let Some(ref exclude_cats) = args.exclude_category {
+                            let categories: Option<Vec<String>> = node
+                                .get(args.filter_file_category_key.clone())
+                                .and_then(|v| v.as_array())
+                                .map(|v| {
+                                    v.iter()
+                                        .filter_map(|i| i.as_str().map(String::from))
+                                        .collect()
+                                });
+
+                            if let Some(categories) = categories {
+                                if !has_excluded_category(&categories, &exclude_cats) {
+                                    filter_set.insert(String::from(filter_file_identifier));
+                                } else {
+                                    num_removed += 1;
+                                }
+                            }
                         } else {
-                            num_removed += 1;
+                            filter_set.insert(String::from(filter_file_identifier));
                         }
-                    } else {
-                        filter_set.insert(node.id);
                     }
                 }
             }
@@ -93,11 +107,12 @@ fn main() -> ExitCode {
 
                 for line in reader.lines() {
                     if let Ok(node_json) = line {
-                        let node: Result<types::BabelFormat, serde_json::Error> =
-                            serde_json::from_str(&node_json);
+                        let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
                         if let Ok(node) = node {
-                            if filter_set.contains(&node.curie) {
-                                writer.write_line(&node_json).expect("Error writing line")
+                            if let Some(babel_file_id) = node.get(args.babel_identifier.clone()).and_then(|v| v.as_str()) {
+                                if filter_set.contains(babel_file_id) {
+                                    writer.write_line(&node_json).expect("Error writing line")
+                                }
                             }
                         }
                     }
