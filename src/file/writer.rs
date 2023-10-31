@@ -36,9 +36,51 @@ impl Writer {
     /// Appends a string `line` with a newline character (`\n`) at the end
     ///
     /// Returns `Err` if there is a problem writing to the file
-    pub fn write_line(&mut self, line: &str) -> io::Result<()> {
+    pub fn write_line(&mut self, line: &str) -> io::Result<&mut Writer> {
         self.writer.write_all(line.as_bytes())?;
         self.writer.write_all(b"\n")?;
-        Ok(())
+        Ok(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{io, fs, path::PathBuf};
+    use tempfile::tempdir;
+
+    use super::Writer;
+
+    #[test]
+    fn writes_line_to_plaintext() -> io::Result<()> {
+        let dir = tempdir()?;
+        let path: PathBuf = dir.path().join("test.txt");
+
+        Writer::new(&path, 32_000)?
+            .write_line("hello")?
+            .write_line("world")?;
+
+
+        let contents = fs::read_to_string(&path)?;
+
+        assert_eq!(&contents, "hello\nworld\n");
+        
+        dir.close()
+    }
+
+    #[test]
+    fn writes_line_to_gzip() -> io::Result<()> {
+        let dir = tempdir()?;
+        let path: PathBuf = dir.path().join("test.txt.gz");
+
+        Writer::new(&path, 32_000)?
+            .write_line("gzipped")?;
+
+
+        let contents: Vec<u8> = fs::read(&path)?;
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 75, 175, 202, 44, 40, 72, 77, 225, 2, 0, 25, 169, 90, 229, 8, 0, 0, 0]; 
+
+        assert_eq!(contents, expected);
+        
+        dir.close()
     }
 }

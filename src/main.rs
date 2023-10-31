@@ -111,7 +111,7 @@ fn main() -> ExitCode {
                         if let Ok(node) = node {
                             if let Some(babel_file_id) = node.get(args.babel_identifier.clone()).and_then(|v| v.as_str()) {
                                 if filter_set.contains(babel_file_id) {
-                                    writer.write_line(&node_json).expect("Error writing line")
+                                    writer.write_line(&node_json).expect("Error writing line");
                                 }
                             }
                         }

@@ -35,3 +35,65 @@ impl Reader {
       self.reader.lines()
   }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::File, io::{self, Write}};
+
+    use tempfile::tempdir;
+
+    use super::Reader;
+
+    #[test]
+    fn read_lines_from_plaintext() -> io::Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("test.txt");
+        let mut file: File = File::create(&path)?;
+        file.write_all("read\nmy\nlines\n".as_bytes())?;
+
+        let lines: Vec<String> = Reader::new(&path, 32_000)?
+            .lines()
+            .map(|f: Result<String, io::Error>| f.unwrap())
+            .collect();
+
+        let expect: Vec<String> = vec![
+            String::from("read"),
+            String::from("my"),
+            String::from("lines"),
+        ];
+
+        assert_eq!(lines, expect);
+
+        dir.close()
+    }
+
+    #[test]
+    fn read_lines_from_gzip() -> io::Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("test.txt.gz");
+        let mut file: File = File::create(&path)?;
+
+        // "gzipped\nlines\n"
+        let bytes: Vec<u8> = vec![
+            0x1F, 0x8B, 0x08, 0x08, 0x6C, 0x3C, 0x41, 0x65, 0x00, 0x03, 0x74,
+            0x65, 0x73, 0x74, 0x2E, 0x74, 0x78, 0x74, 0x00, 0x4B, 0xAF, 0xCA,
+            0x2C, 0x28, 0x48, 0x4D, 0xE1, 0xCA, 0xC9, 0xCC, 0x4B, 0x2D, 0xE6,
+            0x02, 0x00, 0x57, 0x62, 0x83, 0x79, 0x0E, 0x00, 0x00, 0x00
+        ];
+        file.write_all(&bytes)?;
+
+        let lines: Vec<String> = Reader::new(&path, 32_000)?
+            .lines()
+            .map(|f: Result<String, io::Error>| f.unwrap())
+            .collect();
+
+        let expect: Vec<String> = vec![
+            String::from("gzipped"),
+            String::from("lines")
+        ];
+
+        assert_eq!(lines, expect);
+
+        dir.close()
+    }
+}
