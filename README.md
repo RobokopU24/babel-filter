@@ -2,7 +2,7 @@
 
 - [ ] explore if regex parser is faster than serde_json
   - `r#"curie":\s*"([^\s,]*)"`
-- [ ] add functionality for jsonl indentifier keys to be set by command line args
+- [x] add functionality for jsonl indentifier keys to be set by command line args
 - [ ] add verbosity selector to clap, log/warning?/error/silent
 - [ ] figure out best way to check if babel files are jsonl (just extension?)
 - [ ] improve error handling/matching
