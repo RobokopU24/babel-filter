@@ -43,12 +43,12 @@ fn main() -> ExitCode {
                 let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
                 if let Ok(node) = node {
                     if let Some(filter_file_identifier) = node
-                        .get(args.filter_file_identifier.clone())
+                        .get(&args.filter_file_identifier)
                         .and_then(|v| v.as_str())
                     {
                         if let Some(ref exclude_cats) = args.exclude_category {
                             let categories: Option<Vec<String>> = node
-                                .get(args.filter_file_category_key.clone())
+                                .get(&args.filter_file_category_key)
                                 .and_then(|v| v.as_array())
                                 .map(|v| {
                                     v.iter()
@@ -109,7 +109,7 @@ fn main() -> ExitCode {
                     if let Ok(node_json) = line {
                         let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
                         if let Ok(node) = node {
-                            if let Some(babel_file_id) = node.get(args.babel_identifier.clone()).and_then(|v| v.as_str()) {
+                            if let Some(babel_file_id) = node.get(&args.babel_identifier).and_then(|v| v.as_str()) {
                                 if filter_set.contains(babel_file_id) {
                                     writer.write_line(&node_json).expect("Error writing line");
                                 }
