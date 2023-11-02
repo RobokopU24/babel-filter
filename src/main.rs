@@ -47,17 +47,13 @@ fn main() -> ExitCode {
                         .and_then(|v| v.as_str())
                     {
                         if let Some(ref exclude_cats) = args.exclude_category {
-                            let categories: Option<Vec<String>> = node
+                            let categories = node
                                 .get(&args.filter_file_category_key)
                                 .and_then(|v| v.as_array())
-                                .map(|v| {
-                                    v.iter()
-                                        .filter_map(|i| i.as_str().map(String::from))
-                                        .collect()
-                                });
+                                .map(|v| v.iter().filter_map(|i| i.as_str()));
 
                             if let Some(categories) = categories {
-                                if !has_excluded_category(&categories, &exclude_cats) {
+                                if !has_excluded_category(categories, &exclude_cats) {
                                     filter_set.insert(String::from(filter_file_identifier));
                                 } else {
                                     num_removed += 1;
@@ -107,9 +103,12 @@ fn main() -> ExitCode {
 
                 for line in reader.lines() {
                     if let Ok(node_json) = line {
-                        let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
+                        let node: Result<Value, serde_json::Error> =
+                            serde_json::from_str(&node_json);
                         if let Ok(node) = node {
-                            if let Some(babel_file_id) = node.get(&args.babel_identifier).and_then(|v| v.as_str()) {
+                            if let Some(babel_file_id) =
+                                node.get(&args.babel_identifier).and_then(|v| v.as_str())
+                            {
                                 if filter_set.contains(babel_file_id) {
                                     writer.write_line(&node_json).expect("Error writing line");
                                 }
@@ -133,11 +132,14 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn has_excluded_category(set: &Vec<String>, exclude_set: &Vec<String>) -> bool {
+fn has_excluded_category<'a, I>(set: I, exclude_set: &Vec<String>) -> bool
+where
+    I: IntoIterator<Item = &'a str>,
+{
     if exclude_set.is_empty() {
         return false;
     }
-    for cat in set.iter() {
+    for cat in set {
         for ex_cat in exclude_set.iter() {
             if cat == ex_cat {
                 return true;
