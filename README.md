@@ -1,10 +1,12 @@
 **Todo:**
 
-- [ ] explore if regex parser is faster than serde_json
+- [x] explore if regex parser is faster than serde_json
   - `r#"curie":\s*"([^\s,]*)"`
+  - it's not
 - [x] add functionality for jsonl indentifier keys to be set by command line args
 - [ ] add verbosity selector to clap, log/warning?/error/silent
-- [ ] figure out best way to check if babel files are jsonl (just extension?)
+- [x] figure out best way to check if babel files are jsonl (just extension?)
+  - don't think there's really a way to do this without reading whole file (other than sanity check on a couple lines)
 - [ ] improve error handling/matching
   - reduce nesting
   - don't silently skip nodes
@@ -16,4 +18,4 @@
   - per directory--potentially doable and could save time if the OS supports concurrent r/w
 - [x] support compressing/decompressing gzip
   - detect `.gz` and comp/decomp accordingly so that normal files are allowed as well
-- [ ] print info table -> how many nodes were removed
+- [x] print info table -> how many nodes were removed

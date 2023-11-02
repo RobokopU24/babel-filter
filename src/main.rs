@@ -66,7 +66,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        println!("Creating filter set took {:?}", t0.elapsed());
+        println!("Creating filter set took {:.2?}", t0.elapsed());
         println!("{} nodes excluded", num_removed);
     }
 
@@ -74,6 +74,8 @@ fn main() -> ExitCode {
         if let Ok(f) = babel_file {
             if f.path().is_file() {
                 let t0 = Instant::now();
+                let mut num_nodes: usize = 0;
+                let mut num_kept: usize = 0;
 
                 let mut output_file_path = Path::join(
                     output_directory.as_std_path(),
@@ -102,6 +104,7 @@ fn main() -> ExitCode {
                         .expect("Error creating file");
 
                 for line in reader.lines() {
+                    num_nodes += 1;
                     if let Ok(node_json) = line {
                         let node: Result<Value, serde_json::Error> =
                             serde_json::from_str(&node_json);
@@ -110,6 +113,7 @@ fn main() -> ExitCode {
                                 node.get(&args.babel_identifier).and_then(|v| v.as_str())
                             {
                                 if filter_set.contains(babel_file_id) {
+                                    num_kept += 1;
                                     writer.write_line(&node_json).expect("Error writing line");
                                 }
                             }
@@ -118,16 +122,19 @@ fn main() -> ExitCode {
                 }
 
                 println!(
-                    "Writing {:?} took {:?}",
+                    "Writing {:?} took {:.2?}, kept {}/{} nodes ({:.2}%)",
                     output_file_path.file_name().unwrap_or_default(),
-                    t0.elapsed()
+                    t0.elapsed(),
+                    num_kept,
+                    num_nodes,
+                    num_kept as f64 / num_nodes as f64
                 );
             }
         }
     }
 
     let duration = start.elapsed();
-    println!("Program took {:?}", duration);
+    println!("Program took {:.2?}", duration);
 
     ExitCode::SUCCESS
 }
