@@ -24,7 +24,7 @@ pub struct Cli {
   pub exclude_category: Option<Vec<String>>,
 
   /// The json key for the array of strings representing each node's categories
-  #[arg(long, default_value_t = String::from("categories"), value_name="KEY")]
+  #[arg(long, default_value_t = String::from("category"), value_name="KEY")]
   pub filter_file_category_key: String,
 
   /// The identifier key in each line of the filter file JSONL
