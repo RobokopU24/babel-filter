@@ -3,7 +3,7 @@ mod file;
 
 use std::{ffi::OsStr, fs, path::Path, process::ExitCode, time::Instant};
 
-use ahash::AHashSet;
+use ahash::AHashMap;
 use clap::Parser;
 use serde_json::{self, Value};
 
@@ -31,7 +31,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    let mut filter_set: AHashSet<String> = AHashSet::new();
+    let mut filter_set: AHashMap<String, Value> = AHashMap::new();
     {
         let mut num_removed: usize = 0;
         let t0 = Instant::now();
@@ -54,13 +54,13 @@ fn main() -> ExitCode {
 
                             if let Some(categories) = categories {
                                 if !has_excluded_category(categories, &exclude_cats) {
-                                    filter_set.insert(String::from(filter_file_identifier));
+                                    filter_set.insert(String::from(filter_file_identifier), node);
                                 } else {
                                     num_removed += 1;
                                 }
                             }
                         } else {
-                            filter_set.insert(String::from(filter_file_identifier));
+                            filter_set.insert(String::from(filter_file_identifier), node);
                         }
                     }
                 }
@@ -112,7 +112,7 @@ fn main() -> ExitCode {
                             if let Some(babel_file_id) =
                                 node.get(&args.babel_identifier).and_then(|v| v.as_str())
                             {
-                                if filter_set.contains(babel_file_id) {
+                                if filter_set.remove(babel_file_id).is_some() {
                                     num_kept += 1;
                                     writer.write_line(&node_json).expect("Error writing line");
                                 }
@@ -132,6 +132,33 @@ fn main() -> ExitCode {
             }
         }
     }
+
+    // create a new file (NonBabelNodes.txt.gz) for all the extra nodes in the filter_set
+    let non_babel_nodes_path = Path::join(output_directory.as_std_path(), "./NonBabelNodes.txt.gz");
+    let mut nbn_writer = Writer::new(non_babel_nodes_path, args.write_buf_capacity).expect("Error creating NonBabelNodes file");
+    let filter_set_size = filter_set.len();
+    for (curie, node_json) in filter_set {
+        let name = node_json.get("name").and_then(|v| v.as_str());
+        let categories = node_json
+            .get("category")
+            .and_then(|v| v.as_array())
+            .map(|v| v.iter().filter_map(|i| i.as_str()));
+        
+        if let (Some(name), Some(categories)) = (name, categories) {
+            let babel_identifier_key = &args.babel_identifier;
+            let name_length = name.len();
+            let types = categories
+                .map(|s| s.replace("biolink:", ""))
+                .map(|mut s| { s.insert(0, '"'); s.push('"'); s })
+                .collect::<Vec<String>>()
+                .join(",");
+
+            let json = format!(r#"{{"{babel_identifier_key}":"{curie}","names":["{name}"],"types":[{types}],"preferred_name":["{name}"],"shortest_name_length":{name_length}}}"#);
+
+            nbn_writer.write_line(&json).expect("Error writing line");
+        }
+    }
+    println!("Wrote an extra {filter_set_size} nodes to NonBabelNodes.txt.gz");
 
     let duration = start.elapsed();
     println!("Program took {:.2?}", duration);
