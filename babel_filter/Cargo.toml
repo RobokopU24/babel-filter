@@ -1,0 +1,15 @@
+[package]
+name = "babel_filter"
+version = "0.1.0"
+author = "David Glymph <dglymph@renci.org>"
+edition = "2021"
+
+[dependencies]
+ahash = "0.8.3"
+camino = "1.1.6"
+flate2 = { version = "1.0.28", features = ["zlib-ng"], default-features = true }
+serde = { version = "1.0.189", features = ["derive"] }
+serde_json = "1.0.107"
+
+[dev-dependencies]
+tempfile = "3.8.1"

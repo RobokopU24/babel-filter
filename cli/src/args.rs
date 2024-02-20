@@ -5,10 +5,10 @@ use clap::Parser;
 /// in a new directory containing only the lines where the the json key (default `curie`)
 /// value in the Babel file is present in a json key (default `id`) value in the filter file. 
 /// 
-/// Gzipped files will be gzipped in the output, unless the user 
+/// Gzipped files will be automatically detected
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub struct Cli {
+pub struct CliArgs {
   /// The directory containing Babel JSONL files
   pub babel_directory: Utf8PathBuf,
   

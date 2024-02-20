@@ -1,18 +1,15 @@
-mod args;
+pub mod args;
 mod file;
 
 use std::{ffi::OsStr, fs, path::Path, process::ExitCode, time::Instant};
 
 use ahash::AHashMap;
-use clap::Parser;
 use serde_json::{self, Value};
 
 use file::{reader::Reader, writer::Writer};
 
-fn main() -> ExitCode {
+pub fn run(args: args::Args) -> ExitCode {
     let start = Instant::now();
-
-    let args = args::Cli::parse();
 
     let babel_directory = args.babel_directory;
     let filter_file = args.filter_file;
