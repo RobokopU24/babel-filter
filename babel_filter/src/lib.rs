@@ -1,14 +1,33 @@
-pub mod args;
+mod config;
 mod file;
 
+use ahash::AHashMap;
+pub use config::{Config, OutputFormat};
+use file::{reader::Reader, writer::Writer};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::{ffi::OsStr, fs, path::Path, process::ExitCode, time::Instant};
 
-use ahash::AHashMap;
-use serde_json::{self, Value};
+const BUF_CAPACITY: usize = 32_000;
 
-use file::{reader::Reader, writer::Writer};
+#[derive(Serialize, Deserialize)]
+struct BabelJson {
+    curie: String,
+    names: Vec<String>,
+    types: Vec<String>,
+    preferred_name: String,
+    shortest_name_length: usize,
+}
 
-pub fn run(args: args::Args) -> ExitCode {
+#[derive(Serialize, Deserialize)]
+struct NodeListJson {
+    id: String,
+    name: String,
+    category: Vec<String>,
+    equivalent_identifiers: Vec<String>,
+}
+
+pub fn run(args: Config) -> ExitCode {
     let start = Instant::now();
 
     let babel_directory = args.babel_directory;
@@ -28,37 +47,24 @@ pub fn run(args: args::Args) -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    let mut filter_set: AHashMap<String, Value> = AHashMap::new();
+    let mut filter_set: AHashMap<String, NodeListJson> = AHashMap::new();
     {
         let mut num_removed: usize = 0;
         let t0 = Instant::now();
-        let lines = Reader::new(filter_file, args.read_buf_capacity)
+        let lines = Reader::new(filter_file, BUF_CAPACITY)
             .expect("Error opening filter file")
             .lines();
         for line in lines {
             if let Ok(node_json) = line {
-                let node: Result<Value, serde_json::Error> = serde_json::from_str(&node_json);
-                if let Ok(node) = node {
-                    if let Some(filter_file_identifier) = node
-                        .get(&args.filter_file_identifier)
-                        .and_then(|v| v.as_str())
-                    {
-                        if let Some(ref exclude_cats) = args.exclude_category {
-                            let categories = node
-                                .get(&args.filter_file_category_key)
-                                .and_then(|v| v.as_array())
-                                .map(|v| v.iter().filter_map(|i| i.as_str()));
-
-                            if let Some(categories) = categories {
-                                if !has_excluded_category(categories, &exclude_cats) {
-                                    filter_set.insert(String::from(filter_file_identifier), node);
-                                } else {
-                                    num_removed += 1;
-                                }
-                            }
+                if let Ok(node) = serde_json::from_str::<NodeListJson>(&node_json) {
+                    if let Some(ref exclude_cats) = args.exclude_category {
+                        if !has_excluded_category(node.category.iter(), &exclude_cats) {
+                            filter_set.insert(String::from(&node.id), node);
                         } else {
-                            filter_set.insert(String::from(filter_file_identifier), node);
+                            num_removed += 1;
                         }
+                    } else {
+                        filter_set.insert(String::from(&node.id), node);
                     }
                 }
             }
@@ -81,12 +87,12 @@ pub fn run(args: args::Args) -> ExitCode {
 
                 // force compressed/not compressed output if output_format arg is set
                 match args.output_format {
-                    Some(args::OutputFormat::Plaintext) => {
+                    Some(OutputFormat::Plaintext) => {
                         if output_file_path.extension() == Some(OsStr::new("gz")) {
                             output_file_path = output_file_path.with_extension("")
                         }
                     }
-                    Some(args::OutputFormat::Gzipped) => {
+                    Some(OutputFormat::Gzipped) => {
                         if output_file_path.extension() != Some(OsStr::new("gz")) {
                             output_file_path = output_file_path.with_extension("gz")
                         }
@@ -94,25 +100,19 @@ pub fn run(args: args::Args) -> ExitCode {
                     None => (),
                 }
 
-                let reader: Reader = Reader::new(f.path(), args.read_buf_capacity)
+                let reader: Reader = Reader::new(f.path(), BUF_CAPACITY)
                     .expect("Error opening file for reading");
                 let mut writer: Writer =
-                    Writer::new(output_file_path.clone(), args.write_buf_capacity)
+                    Writer::new(output_file_path.clone(), BUF_CAPACITY)
                         .expect("Error creating file");
 
                 for line in reader.lines() {
                     num_nodes += 1;
                     if let Ok(node_json) = line {
-                        let node: Result<Value, serde_json::Error> =
-                            serde_json::from_str(&node_json);
-                        if let Ok(node) = node {
-                            if let Some(babel_file_id) =
-                                node.get(&args.babel_identifier).and_then(|v| v.as_str())
-                            {
-                                if filter_set.remove(babel_file_id).is_some() {
-                                    num_kept += 1;
-                                    writer.write_line(&node_json).expect("Error writing line");
-                                }
+                        if let Ok(node) = serde_json::from_str::<BabelJson>(&node_json) {
+                            if filter_set.remove(&node.curie).is_some() {
+                                num_kept += 1;
+                                writer.write_line(&node_json).expect("Error writing line");
                             }
                         }
                     }
@@ -132,28 +132,28 @@ pub fn run(args: args::Args) -> ExitCode {
 
     // create a new file (NonBabelNodes.txt.gz) for all the extra nodes in the filter_set
     let non_babel_nodes_path = Path::join(output_directory.as_std_path(), "./NonBabelNodes.txt.gz");
-    let mut nbn_writer = Writer::new(non_babel_nodes_path, args.write_buf_capacity).expect("Error creating NonBabelNodes file");
+    let mut nbn_writer = Writer::new(non_babel_nodes_path, BUF_CAPACITY)
+        .expect("Error creating NonBabelNodes file");
     let filter_set_size = filter_set.len();
     for (curie, node_json) in filter_set {
-        let name = node_json.get("name").and_then(|v| v.as_str());
-        let categories = node_json
-            .get("category")
-            .and_then(|v| v.as_array())
-            .map(|v| v.iter().filter_map(|i| i.as_str()));
-        
-        if let (Some(name), Some(categories)) = (name, categories) {
-            let babel_identifier_key = &args.babel_identifier;
-            let name_length = name.len();
-            let types = categories
-                .map(|s| s.replace("biolink:", ""))
-                .map(|mut s| { s.insert(0, '"'); s.push('"'); s })
-                .collect::<Vec<String>>()
-                .join(",");
+        let NodeListJson { name, category, .. } = node_json;
 
-            let json = format!(r#"{{"{babel_identifier_key}":"{curie}","names":["{name}"],"types":[{types}],"preferred_name":["{name}"],"shortest_name_length":{name_length}}}"#);
+        let name_length = name.len();
+        let types = category.iter()
+            .map(|s| s.replace("biolink:", ""))
+            .map(|mut s| {
+                s.insert(0, '"');
+                s.push('"');
+                s
+            })
+            .collect::<Vec<String>>()
+            .join(",");
 
-            nbn_writer.write_line(&json).expect("Error writing line");
-        }
+        let json = format!(
+            r#"{{"curie":"{curie}","names":["{name}"],"types":[{types}],"preferred_name":["{name}"],"shortest_name_length":{name_length}}}"#
+        );
+
+        nbn_writer.write_line(&json).expect("Error writing line");
     }
     println!("Wrote an extra {filter_set_size} nodes to NonBabelNodes.txt.gz");
 
@@ -165,13 +165,13 @@ pub fn run(args: args::Args) -> ExitCode {
 
 fn has_excluded_category<'a, I>(set: I, exclude_set: &Vec<String>) -> bool
 where
-    I: IntoIterator<Item = &'a str>,
+    I: IntoIterator<Item = &'a String>,
 {
     if exclude_set.is_empty() {
         return false;
     }
     for cat in set {
-        for ex_cat in exclude_set.iter() {
+        for ex_cat in exclude_set.into_iter() {
             if cat == ex_cat {
                 return true;
             }
