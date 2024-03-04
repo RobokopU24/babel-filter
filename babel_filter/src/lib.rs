@@ -54,7 +54,7 @@ pub fn run(args: Config) -> ExitCode {
         let lines = Reader::new(filter_file, BUF_CAPACITY)
             .expect("Error opening filter file")
             .lines();
-        for (line_index ,line) in lines.enumerate() {
+        for (line_index, line) in lines.enumerate() {
             if let Ok(node_json) = line {
                 match serde_json::from_str::<NodeListJson>(&node_json) {
                     Ok(node) => {
@@ -67,11 +67,10 @@ pub fn run(args: Config) -> ExitCode {
                         } else {
                             filter_set.insert(String::from(&node.id), node);
                         }
-                    },
+                    }
                     Err(e) => eprintln!("Parse error in filter file line {}: {e}", line_index + 1),
                 }
-            }
-            else {
+            } else {
                 eprintln!("Read error in filter file line {}", line_index + 1)
             }
         }
@@ -86,12 +85,12 @@ pub fn run(args: Config) -> ExitCode {
                     let t0 = Instant::now();
                     let mut num_nodes: usize = 0;
                     let mut num_kept: usize = 0;
-    
+
                     let mut output_file_path = Path::join(
                         output_directory.as_std_path(),
                         f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
                     );
-    
+
                     // force compressed/not compressed output if output_format arg is set
                     match args.output_format {
                         Some(OutputFormat::Plaintext) => {
@@ -106,29 +105,33 @@ pub fn run(args: Config) -> ExitCode {
                         }
                         None => (),
                     }
-    
+
                     let reader: Reader = Reader::new(f.path(), BUF_CAPACITY)
                         .expect("Error opening file for reading");
-                    let mut writer: Writer =
-                        Writer::new(output_file_path.clone(), BUF_CAPACITY)
-                            .expect("Error creating file");
-    
+                    let mut writer: Writer = Writer::new(output_file_path.clone(), BUF_CAPACITY)
+                        .expect("Error creating file");
+
                     for (line_index, line) in reader.lines().enumerate() {
                         num_nodes += 1;
                         if let Ok(node_json) = line {
                             match serde_json::from_str::<BabelJson>(&node_json) {
-                                Ok(node) => if filter_set.remove(&node.curie).is_some() {
-                                    num_kept += 1;
-                                    writer.write_line(&node_json).expect("Error writing line");
-                                },
+                                Ok(node) => {
+                                    if filter_set.remove(&node.curie).is_some() {
+                                        num_kept += 1;
+                                        writer.write_line(&node_json).expect("Error writing line");
+                                    }
+                                }
                                 Err(e) => eprint!("{e}"),
                             }
-                        }
-                        else {
-                            eprintln!("Something went wrong reading line {} of {:?}", line_index + 1, f.path())
+                        } else {
+                            eprintln!(
+                                "Something went wrong reading line {} of {:?}",
+                                line_index + 1,
+                                f.path()
+                            )
                         }
                     }
-    
+
                     println!(
                         "Writing {:?} took {:.2?}, kept {}/{} nodes ({:.2}%)",
                         output_file_path.file_name().unwrap_or_default(),
@@ -139,20 +142,21 @@ pub fn run(args: Config) -> ExitCode {
                     );
                 }
             }
-            Err(error) => eprintln!("Error opening file in babel directory: {error}")
+            Err(error) => eprintln!("Error opening file in babel directory: {error}"),
         }
     }
 
     // create a new file (NonBabelNodes.txt.gz) for all the extra nodes in the filter_set
     let non_babel_nodes_path = Path::join(output_directory.as_std_path(), "./NonBabelNodes.txt.gz");
-    let mut nbn_writer = Writer::new(non_babel_nodes_path, BUF_CAPACITY)
-        .expect("Error creating NonBabelNodes file");
+    let mut nbn_writer =
+        Writer::new(non_babel_nodes_path, BUF_CAPACITY).expect("Error creating NonBabelNodes file");
     let filter_set_size = filter_set.len();
     for (curie, node_json) in filter_set {
         let NodeListJson { name, category, .. } = node_json;
 
         let name_length = name.len();
-        let types = category.iter()
+        let types = category
+            .iter()
             .map(|s| s.replace("biolink:", ""))
             .map(|mut s| {
                 s.insert(0, '"');
