@@ -15,8 +15,8 @@ struct BabelJson {
     curie: String,
     names: Vec<String>,
     types: Vec<String>,
-    preferred_name: String,
-    shortest_name_length: usize,
+    preferred_name: Option<String>,
+    shortest_name_length: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -54,19 +54,25 @@ pub fn run(args: Config) -> ExitCode {
         let lines = Reader::new(filter_file, BUF_CAPACITY)
             .expect("Error opening filter file")
             .lines();
-        for line in lines {
+        for (line_index ,line) in lines.enumerate() {
             if let Ok(node_json) = line {
-                if let Ok(node) = serde_json::from_str::<NodeListJson>(&node_json) {
-                    if let Some(ref exclude_cats) = args.exclude_category {
-                        if !has_excluded_category(node.category.iter(), &exclude_cats) {
-                            filter_set.insert(String::from(&node.id), node);
+                match serde_json::from_str::<NodeListJson>(&node_json) {
+                    Ok(node) => {
+                        if let Some(ref exclude_cats) = args.exclude_category {
+                            if !has_excluded_category(node.category.iter(), &exclude_cats) {
+                                filter_set.insert(String::from(&node.id), node);
+                            } else {
+                                num_removed += 1;
+                            }
                         } else {
-                            num_removed += 1;
+                            filter_set.insert(String::from(&node.id), node);
                         }
-                    } else {
-                        filter_set.insert(String::from(&node.id), node);
-                    }
+                    },
+                    Err(e) => eprintln!("Parse error in filter file line {}: {e}", line_index + 1),
                 }
+            }
+            else {
+                eprintln!("Read error in filter file line {}", line_index + 1)
             }
         }
         println!("Creating filter set took {:.2?}", t0.elapsed());
@@ -74,59 +80,66 @@ pub fn run(args: Config) -> ExitCode {
     }
 
     for babel_file in fs::read_dir(babel_directory).unwrap() {
-        if let Ok(f) = babel_file {
-            if f.path().is_file() {
-                let t0 = Instant::now();
-                let mut num_nodes: usize = 0;
-                let mut num_kept: usize = 0;
-
-                let mut output_file_path = Path::join(
-                    output_directory.as_std_path(),
-                    f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
-                );
-
-                // force compressed/not compressed output if output_format arg is set
-                match args.output_format {
-                    Some(OutputFormat::Plaintext) => {
-                        if output_file_path.extension() == Some(OsStr::new("gz")) {
-                            output_file_path = output_file_path.with_extension("")
-                        }
-                    }
-                    Some(OutputFormat::Gzipped) => {
-                        if output_file_path.extension() != Some(OsStr::new("gz")) {
-                            output_file_path = output_file_path.with_extension("gz")
-                        }
-                    }
-                    None => (),
-                }
-
-                let reader: Reader = Reader::new(f.path(), BUF_CAPACITY)
-                    .expect("Error opening file for reading");
-                let mut writer: Writer =
-                    Writer::new(output_file_path.clone(), BUF_CAPACITY)
-                        .expect("Error creating file");
-
-                for line in reader.lines() {
-                    num_nodes += 1;
-                    if let Ok(node_json) = line {
-                        if let Ok(node) = serde_json::from_str::<BabelJson>(&node_json) {
-                            if filter_set.remove(&node.curie).is_some() {
-                                num_kept += 1;
-                                writer.write_line(&node_json).expect("Error writing line");
+        match babel_file {
+            Ok(f) => {
+                if f.path().is_file() {
+                    let t0 = Instant::now();
+                    let mut num_nodes: usize = 0;
+                    let mut num_kept: usize = 0;
+    
+                    let mut output_file_path = Path::join(
+                        output_directory.as_std_path(),
+                        f.path().file_name().unwrap(), // should be safe to unwrap as we're checking is_file() above
+                    );
+    
+                    // force compressed/not compressed output if output_format arg is set
+                    match args.output_format {
+                        Some(OutputFormat::Plaintext) => {
+                            if output_file_path.extension() == Some(OsStr::new("gz")) {
+                                output_file_path = output_file_path.with_extension("")
                             }
                         }
+                        Some(OutputFormat::Gzipped) => {
+                            if output_file_path.extension() != Some(OsStr::new("gz")) {
+                                output_file_path = output_file_path.with_extension("gz")
+                            }
+                        }
+                        None => (),
                     }
+    
+                    let reader: Reader = Reader::new(f.path(), BUF_CAPACITY)
+                        .expect("Error opening file for reading");
+                    let mut writer: Writer =
+                        Writer::new(output_file_path.clone(), BUF_CAPACITY)
+                            .expect("Error creating file");
+    
+                    for (line_index, line) in reader.lines().enumerate() {
+                        num_nodes += 1;
+                        if let Ok(node_json) = line {
+                            match serde_json::from_str::<BabelJson>(&node_json) {
+                                Ok(node) => if filter_set.remove(&node.curie).is_some() {
+                                    num_kept += 1;
+                                    writer.write_line(&node_json).expect("Error writing line");
+                                },
+                                Err(e) => eprint!("{e}"),
+                            }
+                        }
+                        else {
+                            eprintln!("Something went wrong reading line {} of {:?}", line_index + 1, f.path())
+                        }
+                    }
+    
+                    println!(
+                        "Writing {:?} took {:.2?}, kept {}/{} nodes ({:.2}%)",
+                        output_file_path.file_name().unwrap_or_default(),
+                        t0.elapsed(),
+                        num_kept,
+                        num_nodes,
+                        num_kept as f64 / num_nodes as f64
+                    );
                 }
-
-                println!(
-                    "Writing {:?} took {:.2?}, kept {}/{} nodes ({:.2}%)",
-                    output_file_path.file_name().unwrap_or_default(),
-                    t0.elapsed(),
-                    num_kept,
-                    num_nodes,
-                    num_kept as f64 / num_nodes as f64
-                );
             }
+            Err(error) => eprintln!("Error opening file in babel directory: {error}")
         }
     }
 
