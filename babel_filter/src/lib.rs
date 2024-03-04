@@ -135,7 +135,7 @@ pub fn run(args: Config) -> ExitCode {
                         t0.elapsed(),
                         num_kept,
                         num_nodes,
-                        num_kept as f64 / num_nodes as f64
+                        (num_kept as f64 / num_nodes as f64) * 100.0
                     );
                 }
             }
