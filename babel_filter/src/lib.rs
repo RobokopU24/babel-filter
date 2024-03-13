@@ -154,24 +154,25 @@ pub fn run(args: Config) -> ExitCode {
     for (curie, node_json) in filter_set {
         let NodeListJson { name, category, .. } = node_json;
 
-        let name_length = name.len();
         let types = category
             .iter()
             .map(|s| s.replace("biolink:", ""))
-            .map(|mut s| {
-                s.insert(0, '"');
-                s.push('"');
-                s
-            })
-            .collect::<Vec<String>>()
-            .join(",");
+            .collect::<Vec<String>>();
 
-        let json = format!(
-            r#"{{"curie":"{curie}","names":["{name}"],"types":[{types}],"preferred_name":["{name}"],"shortest_name_length":{name_length}}}"#
-        );
+        let converted_node = BabelJson {
+            curie,
+            names: vec![name.clone()],
+            types,
+            preferred_name: Some(name.clone()),
+            shortest_name_length: Some(name.len())
+        };
 
-        nbn_writer.write_line(&json).expect("Error writing line");
+        match serde_json::to_string(&converted_node) {
+            Ok(json_string) => { nbn_writer.write_line(&json_string).expect("Error writing line"); },
+            Err(e) => { eprintln!("Error converting a non babel node to a json line: {e}"); }
+        }
     }
+
     println!("Wrote an extra {filter_set_size} nodes to NonBabelNodes.txt.gz");
 
     let duration = start.elapsed();
