@@ -24,7 +24,7 @@ struct NodeListJson {
     id: String,
     name: String,
     category: Vec<String>,
-    equivalent_identifiers: Vec<String>,
+    equivalent_identifiers: Option<Vec<String>>,
 }
 
 pub fn run(args: Config) -> ExitCode {
