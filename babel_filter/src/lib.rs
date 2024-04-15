@@ -17,6 +17,7 @@ struct BabelJson {
     types: Vec<String>,
     preferred_name: Option<String>,
     shortest_name_length: Option<usize>,
+    taxa: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -164,7 +165,8 @@ pub fn run(args: Config) -> ExitCode {
             names: vec![name.clone()],
             types,
             preferred_name: Some(name.clone()),
-            shortest_name_length: Some(name.len())
+            shortest_name_length: Some(name.len()),
+            taxa: vec![]
         };
 
         match serde_json::to_string(&converted_node) {
