@@ -2,8 +2,8 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 
 /// This script takes a directory of Babel files (JSONL) and creates filtered versions
-/// in a new directory containing only the lines where the the json key (default `curie`)
-/// value in the Babel file is present in a json key (default `id`) value in the filter file. 
+/// in a new directory containing only the lines where the `curie` value is present in
+/// the filter file (based on `id` key in filter file lines). 
 /// 
 /// Gzipped files will be automatically detected
 #[derive(Parser, Debug)]
@@ -22,18 +22,6 @@ pub struct CliArgs {
   /// can be specified by using the flag again
   #[arg(short, long, value_name="CATEGORY")]
   pub exclude_category: Option<Vec<String>>,
-
-  /// The json key for the array of strings representing each node's categories
-  #[arg(long, default_value_t = String::from("category"), value_name="KEY")]
-  pub filter_file_category_key: String,
-
-  /// The identifier key in each line of the filter file JSONL
-  #[arg(long, default_value_t = String::from("id"), value_name="KEY")]
-  pub filter_file_identifier: String,
-  
-  /// The identifier key in each line of the Babel JSONL
-  #[arg(long, default_value_t = String::from("curie"), value_name="KEY")]
-  pub babel_identifier: String,
 
   /// Force format of all output files. If not set, output files will match their input files.
   #[clap(short='c', long, value_enum)]
