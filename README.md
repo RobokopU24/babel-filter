@@ -1,21 +1,19 @@
-**Todo:**
+To view usage, run `babel-filter --help`:
+```
+This script takes a directory of Babel files (JSONL) and creates filtered versions in a new directory containing only the lines where the `curie` value is present in the filter file (based on `id` key in filter file lines)
 
-- [x] explore if regex parser is faster than serde_json
-  - `r#"curie":\s*"([^\s,]*)"`
-  - it's not
-- [x] add functionality for jsonl indentifier keys to be set by command line args
-- [ ] add verbosity selector to clap, log/warning?/error/silent
-- [x] figure out best way to check if babel files are jsonl (just extension?)
-  - don't think there's really a way to do this without reading whole file (other than sanity check on a couple lines)
-- [ ] improve error handling/matching
-  - reduce nesting
-  - don't silently skip nodes
-- [ ] error file when a node fails or write to stderr? config via flag?
-- [ ] add better progress indication, colors, est time remaining
-- [x] allow read/write buffer to be configured by flag
-- [ ] multithreading?
-  - per file--probably not worth the headache, especially if this is running on a HDD
-  - per directory--potentially doable and could save time if the OS supports concurrent r/w
-- [x] support compressing/decompressing gzip
-  - detect `.gz` and comp/decomp accordingly so that normal files are allowed as well
-- [x] print info table -> how many nodes were removed
+Usage: babel-filter [OPTIONS] <BABEL_DIRECTORY> <FILTER_FILE> <OUTPUT_DIRECTORY>
+
+Arguments:
+  <BABEL_DIRECTORY>   The directory containing Babel JSONL files
+  <FILTER_FILE>       The path to the filter JSONL file to be used
+  <OUTPUT_DIRECTORY>  The directory to put the filtered JSONL output files
+
+Options:
+  -e, --exclude-category <CATEGORY>    Exclude nodes with these biolink categories from the output. Multiple categories can be specified by using the flag again
+  -c, --output-format <OUTPUT_FORMAT>  Force format of all output files. If not set, output files will match their input files [possible values: gzipped, plaintext]
+      --read-buf-capacity <BYTES>      read buffer capacity, in bytes [default: 32000]
+      --write-buf-capacity <BYTES>     write buffer capacity, in bytes [default: 32000]
+  -h, --help                           Print help
+  -V, --version                        Print version
+```

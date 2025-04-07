@@ -1,7 +1,6 @@
 [package]
 name = "babel_filter"
 version = "0.1.0"
-author = "David Glymph <dglymph@renci.org>"
 edition = "2021"
 
 [dependencies]
